@@ -11,27 +11,24 @@ import {
   useGetOrderDetailsQuery,
   useGetPaypalClientIdQuery,
   usePayOrderMutation,
+  usePayOrderWithRazorpayMutation,
 } from '../slices/ordersApiSlice';
+import { loadRazorpay } from '../utils/razorpay';
 
 const OrderScreen = () => {
   const { id: orderId } = useParams();
-
   const {
     data: order,
     refetch,
     isLoading,
     error,
   } = useGetOrderDetailsQuery(orderId);
-
   const [payOrder, { isLoading: loadingPay }] = usePayOrderMutation();
-
   const [deliverOrder, { isLoading: loadingDeliver }] =
     useDeliverOrderMutation();
-
   const { userInfo } = useSelector((state) => state.auth);
-
   const [{ isPending }, paypalDispatch] = usePayPalScriptReducer();
-
+  const [payWithRazorpay] = usePayOrderWithRazorpayMutation();
   const {
     data: paypal,
     isLoading: loadingPayPal,
@@ -70,14 +67,6 @@ const OrderScreen = () => {
     });
   }
 
-  // TESTING ONLY! REMOVE BEFORE PRODUCTION
-  // async function onApproveTest() {
-  //   await payOrder({ orderId, details: { payer: {} } });
-  //   refetch();
-
-  //   toast.success('Order is paid');
-  // }
-
   function onError(err) {
     toast.error(err.message);
   }
@@ -95,6 +84,45 @@ const OrderScreen = () => {
         return orderID;
       });
   }
+
+  // Handle Razorpay payment
+  const handleRazorpayPayment = async () => {
+    try {
+      const Razorpay = await loadRazorpay();
+      console.log('Razorpay script loaded successfully');
+
+      const options = {
+        key: 'yrzp_test_DuBegaJFjThp3W',
+        amount: order.totalPrice * 100, // Convert to paise
+        currency: 'INR',
+        name: 'Your Store',
+        description: 'Payment for Order',
+        handler: async (response) => {
+          try {
+            await payWithRazorpay({
+              orderId: order._id,
+              paymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              signature: response.razorpay_signature,
+            }).unwrap();
+            refetch();
+            toast.success('Payment successful!');
+          } catch (err) {
+            toast.error(err?.data?.message || err.error);
+          }
+        },
+        prefill: {
+          name: userInfo.name,
+          email: userInfo.email,
+        },
+      };
+      // Open Razorpay modal
+      const rzp = new Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      toast.error('Failed to initialize Razorpay');
+    }
+  };
 
   const deliverHandler = async () => {
     await deliverOrder(orderId);
@@ -215,27 +243,25 @@ const OrderScreen = () => {
                 <ListGroup.Item>
                   {loadingPay && <Loader />}
 
-                  {isPending ? (
+                  {order.paymentMethod === 'PayPal' && isPending ? (
                     <Loader />
-                  ) : (
+                  ) : order.paymentMethod === 'PayPal' ? (
                     <div>
-                      {/* THIS BUTTON IS FOR TESTING! REMOVE BEFORE PRODUCTION! */}
-                      {/* <Button
-                        style={{ marginBottom: '10px' }}
-                        onClick={onApproveTest}
-                      >
-                        Test Pay Order
-                      </Button> */}
-
-                      <div>
-                        <PayPalButtons
-                          createOrder={createOrder}
-                          onApprove={onApprove}
-                          onError={onError}
-                        ></PayPalButtons>
-                      </div>
+                      <PayPalButtons
+                        createOrder={createOrder}
+                        onApprove={onApprove}
+                        onError={onError}
+                      ></PayPalButtons>
                     </div>
-                  )}
+                  ) : order.paymentMethod === 'Razorpay' ? (
+                    <Button
+                      type='button'
+                      className='btn-block'
+                      onClick={handleRazorpayPayment}
+                    >
+                      Pay with Razorpay
+                    </Button>
+                  ) : null}
                 </ListGroup.Item>
               )}
 

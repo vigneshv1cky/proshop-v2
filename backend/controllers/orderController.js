@@ -3,6 +3,7 @@ import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
 import { calcPrices } from '../utils/calcPrices.js';
 import { verifyPayPalPayment, checkIfNewTransaction } from '../utils/paypal.js';
+import { verifyRazorpayPayment } from '../utils/razorpay.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -121,6 +122,52 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update order to paid (Razorpay)
+// @route   PUT /api/orders/:id/pay/razorpay
+// @access  Private
+const updateOrderToPaidWithRazorpay = asyncHandler(async (req, res) => {
+  const { paymentId, orderId, signature } = req.body;
+
+  // Verify the Razorpay payment
+  const { verified, amount } = await verifyRazorpayPayment(
+    paymentId,
+    orderId,
+    signature
+  );
+
+  if (!verified) {
+    res.status(400);
+    throw new Error('Payment not verified');
+  }
+
+  const order = await Order.findById(req.params.id);
+
+  if (order) {
+    // Check if the correct amount was paid
+    const paidCorrectAmount = order.totalPrice.toString() === amount.toString();
+    if (!paidCorrectAmount) {
+      res.status(400);
+      throw new Error('Incorrect amount paid');
+    }
+
+    // Update the order status
+    order.isPaid = true;
+    order.paidAt = Date.now();
+    order.paymentResult = {
+      id: paymentId,
+      status: 'captured',
+      update_time: Date.now(),
+      email_address: req.body.payerEmail, // Optional: Include payer email if available
+    };
+
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
+  } else {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+});
+
 // @desc    Update order to delivered
 // @route   GET /api/orders/:id/deliver
 // @access  Private/Admin
@@ -153,6 +200,7 @@ export {
   getMyOrders,
   getOrderById,
   updateOrderToPaid,
+  updateOrderToPaidWithRazorpay,
   updateOrderToDelivered,
   getOrders,
 };

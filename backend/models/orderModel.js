@@ -35,6 +35,10 @@ const orderSchema = mongoose.Schema(
       status: { type: String },
       update_time: { type: String },
       email_address: { type: String },
+      // Add provider-specific fields
+      provider: { type: String, enum: ['PayPal', 'Razorpay'] },
+      currency: { type: String }, // e.g., USD, INR
+      amount: { type: Number }, // Amount paid
     },
     itemsPrice: {
       type: Number,
