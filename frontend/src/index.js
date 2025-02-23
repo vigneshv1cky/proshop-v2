@@ -32,11 +32,13 @@ import UserEditScreen from './screens/admin/UserEditScreen';
 import store from './store';
 import { Provider } from 'react-redux';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
+import Test from './screens/Test';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<App />}>
       <Route index={true} path='/' element={<HomeScreen />} />
+      <Route index={true} path='/test' element={<Test />} />
       <Route path='/search/:keyword' element={<HomeScreen />} />
       <Route path='/page/:pageNumber' element={<HomeScreen />} />
       <Route

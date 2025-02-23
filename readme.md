@@ -39,6 +39,9 @@ MONGO_URI = your mongodb uri
 JWT_SECRET = 'abc123'
 PAYPAL_CLIENT_ID = your paypal client id
 PAGINATION_LIMIT = 8
+RAZORPAY_KEY_ID=rzp_test_Em6p4dlBEli9T5
+RAZORPAY_KEY_SECRET=C3T3rUAv95BZsQuOr2OdH6Ns
+
 ```
 
 Change the JWT_SECRET and PAGINATION_LIMIT to what you want
