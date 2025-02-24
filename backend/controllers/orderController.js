@@ -4,6 +4,7 @@ import Product from '../models/productModel.js';
 import { calcPrices } from '../utils/calcPrices.js';
 import { verifyPayPalPayment, checkIfNewTransaction } from '../utils/paypal.js';
 import { verifyRazorpayPayment } from '../utils/razorpay.js';
+import sendOrderEmail from '../utils/emailService.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -63,7 +64,10 @@ const addOrderItems = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/myorders
 // @access  Private
 const getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ user: req.user._id });
+  const orders = await Order.find({})
+    .populate('user', 'id name email') // Select only required fields
+    .select('-__v'); // Exclude Mongoose version key
+
   res.json(orders);
 });
 
@@ -115,6 +119,9 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    // Send invoice email
+    await sendOrderEmail(updatedOrder, updatedOrder.user.email);
+
     res.json(updatedOrder);
   } else {
     res.status(404);
@@ -143,6 +150,12 @@ const updateOrderToPaidWithRazorpay = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
   if (order) {
+    // Ensure Razorpay order ID matches the stored order
+    if (order.razorpayOrderId !== orderId) {
+      res.status(400);
+      throw new Error('Mismatched Order ID');
+    }
+
     // Check if the correct amount was paid
     const paidCorrectAmount = order.totalPrice.toString() === amount.toString();
     if (!paidCorrectAmount) {

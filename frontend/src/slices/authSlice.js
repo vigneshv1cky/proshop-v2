@@ -1,9 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  userInfo: localStorage.getItem('userInfo')
-    ? JSON.parse(localStorage.getItem('userInfo'))
-    : null,
+  userInfo: JSON.parse(localStorage.getItem('userInfo')) || null,
 };
 
 const authSlice = createSlice({
@@ -14,15 +12,12 @@ const authSlice = createSlice({
       state.userInfo = action.payload;
       localStorage.setItem('userInfo', JSON.stringify(action.payload));
     },
-    logout: (state, action) => {
+    logout: (state) => {
       state.userInfo = null;
-      // NOTE: here we need to also remove the cart from storage so the next
-      // logged in user doesn't inherit the previous users cart and shipping
-      localStorage.clear();
+      localStorage.removeItem('userInfo'); // Only remove user info, not everything
     },
   },
 });
 
 export const { setCredentials, logout } = authSlice.actions;
-
 export default authSlice.reducer;

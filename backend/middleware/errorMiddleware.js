@@ -8,11 +8,20 @@ const errorHandler = (err, req, res, next) => {
   let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   let message = err.message;
 
-  // NOTE: checking for invalid ObjectId moved to it's own middleware
-  // See README for further info.
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors)
+      .map((val) => val.message)
+      .join(', ');
+  }
+
+  if (err.name === 'CastError') {
+    statusCode = 400;
+    message = `Invalid ${err.path}: ${err.value}`;
+  }
 
   res.status(statusCode).json({
-    message: message,
+    message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack,
   });
 };

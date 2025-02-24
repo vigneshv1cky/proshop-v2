@@ -95,8 +95,9 @@ const OrderScreen = () => {
         key: process.env.REACT_APP_RAZORPAY_KEY_ID,
         amount: order.totalPrice * 100, // Convert to paise
         currency: 'INR',
-        name: 'Your Store',
+        name: 'Prostore',
         description: 'Payment for Order',
+
         handler: async (response) => {
           try {
             await payWithRazorpay({

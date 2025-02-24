@@ -20,7 +20,11 @@ const importData = async () => {
 
     const createdUsers = await User.insertMany(users);
 
-    const adminUser = createdUsers[0]._id;
+    const adminUser = createdUsers.find((user) => user.isAdmin);
+    if (!adminUser) {
+      console.error('No admin user found in seed data'.red.inverse);
+      process.exit(1);
+    }
 
     const sampleProducts = products.map((product) => {
       return { ...product, user: adminUser };

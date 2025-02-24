@@ -9,6 +9,7 @@ import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+import rateLimit from 'express-rate-limit';
 
 const port = process.env.PORT || 5000;
 
@@ -44,6 +45,54 @@ if (process.env.NODE_ENV === 'production') {
     res.send('API is running....');
   });
 }
+
+const loginAttempts = new Map(); // Store failed attempts
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Max 5 failed attempts per IP
+  handler: (req, res) => {
+    res
+      .status(429)
+      .json({ message: 'Too many failed login attempts. Try again later' });
+  },
+});
+
+// Middleware to track failed attempts
+const trackFailedAttempts = (req, res, next) => {
+  const ip = req.ip;
+
+  if (!loginAttempts.has(ip)) {
+    loginAttempts.set(ip, { count: 0, lastAttempt: Date.now() });
+  }
+
+  const attempt = loginAttempts.get(ip);
+  attempt.count += 1;
+  attempt.lastAttempt = Date.now();
+
+  if (attempt.count >= 5) {
+    return res
+      .status(429)
+      .json({ message: 'Too many failed login attempts, please wait' });
+  }
+
+  next();
+};
+
+// Apply only to failed login attempts
+app.post('/api/users/auth', trackFailedAttempts, async (req, res, next) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !(await user.matchPassword(password))) {
+    return res.status(401).json({ message: 'Invalid email or password' });
+  }
+
+  // Reset failed attempts on successful login
+  loginAttempts.delete(req.ip);
+
+  res.json({ message: 'Login successful' });
+});
 
 app.use(notFound);
 app.use(errorHandler);

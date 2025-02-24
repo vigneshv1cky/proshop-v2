@@ -128,10 +128,11 @@ const getUsers = asyncHandler(async (req, res) => {
 const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
-  if (user) {
-    if (user.isAdmin) {
+  if (user && user.isAdmin) {
+    const adminCount = await User.countDocuments({ isAdmin: true });
+    if (adminCount === 1) {
       res.status(400);
-      throw new Error('Can not delete admin user');
+      throw new Error('Cannot delete the last admin user');
     }
     await User.deleteOne({ _id: user._id });
     res.json({ message: 'User removed' });
