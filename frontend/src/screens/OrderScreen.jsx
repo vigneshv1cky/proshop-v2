@@ -92,7 +92,7 @@ const OrderScreen = () => {
       console.log('Razorpay script loaded successfully');
 
       const options = {
-        key: 'yrzp_test_DuBegaJFjThp3W',
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
         amount: order.totalPrice * 100, // Convert to paise
         currency: 'INR',
         name: 'Your Store',
